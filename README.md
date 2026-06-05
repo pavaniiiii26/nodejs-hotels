@@ -48,14 +48,6 @@ cd nodejs-hotels
 npm install
 ```
 
-### Configuration
-
-Create a `.env` file in the root directory:
-
-```env
-MONGO_URI=mongodb://localhost:27017/hotelsdb
-PORT=3000
-```
 
 ### Running the App
 
@@ -64,7 +56,7 @@ PORT=3000
 npm start
 
 # Development mode (with auto-reload)
-npx nodemon server.js
+npx nodemon server.js or node server.js
 ```
 
 The server will start at `http://localhost:3000`
