@@ -4,6 +4,8 @@ import db from './db.js' // Import the database connection
 
 import personRoutes from './routes/personRoutes.js' // Import person routes
 import menuRoutes from './routes/menuRoutes.js' // Import menu routes
+import Person from './models/person.js' // Import the person model
+import { localAuthmiddleware } from './auth.js' // Import the auth middleware
 
 const app = express();
 app.use(express.json());
@@ -16,13 +18,13 @@ const logRequest = (req, res, next) => {
 
 app.use(logRequest) // Use the logging middleware for all routes
 
-app.get('/', (req, res) => {
-  res.send('Welcome to the restaurant API!')
-})
-
-app.use('/person', personRoutes) // Use person routes
+app.use('/person', localAuthmiddleware ,personRoutes) // Use person routes
 app.use('/menu', menuRoutes) // Use menu routes 
 
 app.listen(3000, () => {
   console.log('Server is running on http://localhost:3000')
+})
+
+app.get('/', logRequest, (req, res) => {
+  res.send('Welcome to the restaurant API!')
 })
