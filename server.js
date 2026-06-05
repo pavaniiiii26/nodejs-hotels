@@ -8,6 +8,14 @@ import menuRoutes from './routes/menuRoutes.js' // Import menu routes
 const app = express();
 app.use(express.json());
 
+//middleware funtion
+const logRequest = (req, res, next) => {
+  console.log(`${new Date().toLocaleString()} Request made to ${req.originalUrl}`);
+  next();
+}
+
+app.use(logRequest) // Use the logging middleware for all routes
+
 app.get('/', (req, res) => {
   res.send('Welcome to the restaurant API!')
 })
