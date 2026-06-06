@@ -1,94 +1,161 @@
-import Person from '../models/person.js' // Import the person model
-import express from 'express'
-const router = express.Router()
+import express from 'express';
+import Person from '../models/person.js';
+import { jwtAuthMiddleware, generateToken } from '../jwt.js';
 
-//person routes
-
-//POST a person
-router.post('/', async (req, res) => {
-  console.log('Received body:', req.body)
-
-  try {
-    const data = req.body
-    const newPerson = new Person(data)
-    const savedPerson = await newPerson.save()
-
-    console.log('Person saved successfully:', savedPerson)
-    res.status(201).json(savedPerson)
-  } catch (err) {
-    console.error('Error saving person:', err)
-    res.status(500).json({ error: 'Failed to save person' })
-  }
-})
+const router = express.Router();
 
 
-//GET all person
-router.get('/', async (req, res) => {
-  try {
-    const people = await Person.find()
-    res.json(people)
-  } catch (err) {
-    console.error('Error fetching people:', err)
-    res.status(500).json({ error: 'Failed to fetch people' })
-  }
-})
+// SIGNUP
+router.post('/signup', async (req, res) => {
+    try {
+        const data = req.body;
 
+        const newPerson = new Person(data);
+        const savedPerson = await newPerson.save();
+
+        const token = generateToken(savedPerson);
+
+        res.status(201).json({
+            token
+        });
+
+    } catch (err) {
+        console.error(err);
+
+        if (err.code === 11000) {
+            return res.status(409).json({
+                error: 'Username or email already exists'
+            });
+        }
+
+        res.status(500).json({
+            error: err.message
+        });
+    }
+});
+
+
+// LOGIN
+router.post('/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        const person = await Person.findOne({ username });
+
+        if (!person) {
+            return res.status(401).json({
+                message: 'Invalid username or password'
+            });
+        }
+
+        const isMatch = await person.comparePassword(password);
+
+        if (!isMatch) {
+            return res.status(401).json({
+                message: 'Invalid username or password'
+            });
+        }
+
+        const token = generateToken(person);
+
+        // ONLY TOKEN
+        res.status(200).json({
+            token
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({
+            message: 'Server error'
+        });
+    }
+});
+
+
+// GET LOGGED-IN USER PROFILE ONLY
+router.get('/profile', jwtAuthMiddleware, async (req, res) => {
+    try {
+        const person = await Person.findById(req.user.id).select('-password');
+
+        if (!person) {
+            return res.status(404).json({
+                message: 'User not found'
+            });
+        }
+
+        res.status(200).json(person);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({
+            error: 'Failed to fetch profile'
+        });
+    }
+});
+
+
+// GET BY WORK TYPE
 router.get('/:work', async (req, res) => {
-  try {
-    const work = req.params.work
-    if (work !== 'chef' && work !== 'waiter' && work !== 'manager') {
-      res.status(400).json({ error: 'Invalid work type' })
-      return
+    try {
+        const work = req.params.work;
+
+        if (!['chef', 'waiter', 'manager'].includes(work)) {
+            return res.status(400).json({
+                error: 'Invalid work type'
+            });
+        }
+
+        const people = await Person.find({ work }).select('-password');
+
+        res.status(200).json(people);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({
+            error: 'Failed to fetch people'
+        });
     }
-    const people = await Person.find({ work: work })
-    console.log(`People with work ${work}:`, people)
-    res.json(people)
-  } catch (err) {
-    console.error('Error fetching people by work:', err)
-    res.status(500).json({ error: 'Failed to fetch people by work' })
-  }
-})
+});
 
-router.put('/:id', async (req, res) => {
-  try {
-    const personId = req.params.id
-    const updateData = req.body
 
-    const updatedPerson = await Person.findByIdAndUpdate(personId, updateData,
-         { new: true, runValidators: true }
-        )
-    console.log('Update data:', updateData)
-    
-    if (!updatedPerson) {
-      res.status(404).json({ error: 'Person not found' })
-      return
+// UPDATE OWN PROFILE
+router.put('/profile/update', jwtAuthMiddleware, async (req, res) => {
+    try {
+        const updatedPerson = await Person.findByIdAndUpdate(
+            req.user.id,
+            req.body,
+            {
+                new: true,
+                runValidators: true
+            }
+        ).select('-password');
+
+        res.status(200).json(updatedPerson);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({
+            error: 'Failed to update profile'
+        });
     }
+});
 
-    console.log('Person updated successfully:', updatedPerson)
-    res.json(updatedPerson)
-  } catch (err) {
-    console.error('Error updating person:', err)
-    res.status(500).json({ error: 'Failed to update person' })
-  }
-})
 
-router.delete('/:id', async (req, res) => {
-  try {
-    const personId = req.params.id
+// DELETE OWN PROFILE
+router.delete('/profile/delete', jwtAuthMiddleware, async (req, res) => {
+    try {
+        await Person.findByIdAndDelete(req.user.id);
 
-    const deletedPerson = await Person.findByIdAndDelete(personId)
+        res.status(200).json({
+            message: 'Profile deleted successfully'
+        });
 
-    if (!deletedPerson) {
-      res.status(404).json({ error: 'Person not found' })
-      return
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({
+            error: 'Failed to delete profile'
+        });
     }
-
-    console.log('Person deleted successfully:', deletedPerson)
-    res.json({ message: 'Person deleted successfully' })
-  } catch (err) {
-    console.error('Error deleting person:', err)
-    res.status(500).json({ error: 'Failed to delete person' })
-  }
-})
+});
 
 export default router;
