@@ -18,7 +18,7 @@ const logRequest = (req, res, next) => {
 
 app.use(logRequest) // Use the logging middleware for all routes
 
-app.use('/person', localAuthmiddleware ,personRoutes) // Use person routes
+app.use('/person',localAuthmiddleware, personRoutes) // Use person routes
 app.use('/menu', menuRoutes) // Use menu routes 
 
 app.listen(3000, () => {
