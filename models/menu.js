@@ -1,14 +1,15 @@
 import mongoose from 'mongoose';
 
-// Define the menu schema
 const menuSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   price: {
     type: Number,
-    required: true
+    required: true,
+    min: [0, 'Price cannot be negative']
   },
   taste: {
     type: String,
@@ -17,20 +18,19 @@ const menuSchema = new mongoose.Schema({
   },
   is_drink: {
     type: Boolean,
-    required: false
+    default: false
   },
   ingredients: {
     type: [String],
-    required: false
+    default: []
   },
   number_of_orders: {
     type: Number,
-    required: false
+    default: 0,
+    min: [0, 'Number of orders cannot be negative']
   }
 });
 
-// Create the menu model
 const Menu = mongoose.model('Menu', menuSchema);
 
-// Export the menu model
 export default Menu;

@@ -1,51 +1,94 @@
-import Menu from '../models/menu.js' // Import the menu model
-import express from 'express'
-const router = express.Router()
+import express from 'express';
+import Menu from '../models/menu.js';
+import { jwtAuthMiddleware } from '../jwt.js';
+import Person from '../models/person.js';
 
-//menu routes
-//POST a menu
-router.post('/', async (req, res) => {
-  console.log('Received body:', req.body)
+const router = express.Router();
 
+// Middleware: only allows managers to proceed
+const managerOnly = async (req, res, next) => {
   try {
-    const data = req.body
-    const newMenu = new Menu(data)
-    const savedMenu = await newMenu.save()
-
-    console.log('Menu saved successfully:', savedMenu)
-    res.status(201).json(savedMenu)
-
-  } catch (err) {
-    console.error('Error saving menu:', err)
-    res.status(500).json({ error: 'Failed to save menu' })
-  }
-})
-
-//GET all menu
-router.get('/', async (req, res) => {
-  try {
-    const menus = await Menu.find()
-    res.json(menus)
-  } catch (err) {
-    console.error('Error fetching menus:', err)
-    res.status(500).json({ error: 'Failed to fetch menus' })
-  }
-})
-
-router.get('/:taste', async (req, res) => {
-  try {
-    const taste = req.params.taste
-    if (taste !== 'sweet' && taste !== 'salty' && taste !== 'sour') {
-      res.status(400).json({ error: 'Invalid taste type' })
-      return
+    const person = await Person.findById(req.user.id);
+    if (!person || person.work !== 'manager') {
+      return res.status(403).json({ error: 'Access denied. Managers only.' });
     }
-    const menus = await Menu.find({ taste: taste })
-    console.log(`Menus with taste ${taste}:`, menus)
-    res.json(menus)
+    next();
   } catch (err) {
-    console.error('Error fetching menus by taste:', err)
-    res.status(500).json({ error: 'Failed to fetch menus by taste' })
+    next(err);
   }
-})
+};
+
+// POST /menu — Add a new menu item (managers only)
+router.post('/', jwtAuthMiddleware, managerOnly, async (req, res, next) => {
+  try {
+    const newMenu = new Menu(req.body);
+    const savedMenu = await newMenu.save();
+    res.status(201).json(savedMenu);
+  } catch (err) {
+    // Mongoose validation errors → 400 instead of 500
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ error: err.message });
+    }
+    next(err);
+  }
+});
+
+// GET /menu — Get all menu items with pagination
+// Usage: GET /menu?page=1&limit=10
+router.get('/', async (req, res, next) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, parseInt(req.query.limit) || 10); // cap at 50
+    const skip = (page - 1) * limit;
+
+    const [menus, total] = await Promise.all([
+      Menu.find().skip(skip).limit(limit),
+      Menu.countDocuments()
+    ]);
+
+    res.json({
+      data: menus,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /menu/:taste — Get menu items filtered by taste
+router.get('/:taste', async (req, res, next) => {
+  try {
+    const { taste } = req.params;
+
+    if (!['sweet', 'salty', 'sour'].includes(taste)) {
+      return res.status(400).json({ error: 'Invalid taste. Must be: sweet, salty, or sour' });
+    }
+
+    const menus = await Menu.find({ taste });
+    res.json(menus);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /menu/:id — Delete a menu item (managers only)
+router.delete('/:id', jwtAuthMiddleware, managerOnly, async (req, res, next) => {
+  try {
+    const deleted = await Menu.findByIdAndDelete(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ error: 'Menu item not found' });
+    }
+
+    res.json({ message: 'Menu item deleted successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
 
 export default router;

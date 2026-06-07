@@ -1,31 +1,21 @@
-import mongoose from 'mongoose'
+import mongoose from 'mongoose';
 
-//define the MongoDB connection URI
-const MONGODB_URI = 'mongodb://localhost:27017/mydatabase'
+const MONGODB_URI = process.env.MONGODB_URI;
 
-//setup mongoose connection
-mongoose.connect(MONGODB_URI)
+mongoose.connect(MONGODB_URI);
 
-//get the default connection
-//handle connection events
 const db = mongoose.connection;
 
-//define connection events
 db.on('connected', () => {
-    console.log('Connected to MongoDB');
-})
+  console.log('Connected to MongoDB');
+});
 
 db.on('disconnected', () => {
-    console.log('Disconnected from MongoDB');
-})
+  console.log('Disconnected from MongoDB');
+});
 
 db.on('error', (err) => {
-    console.error('MongoDB connection error:', err);
-})
-
-//export database connection
+  console.error('MongoDB connection error:', err);
+});
 
 export default db;
-
-
-
