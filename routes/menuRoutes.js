@@ -2,6 +2,11 @@ import express from 'express';
 import Menu from '../models/menu.js';
 import { jwtAuthMiddleware } from '../jwt.js';
 import Person from '../models/person.js';
+import multer from 'multer';
+
+const storage = multer.memoryStorage(); // Store files in memory for simplicity
+
+const upload = multer({ storage });
 
 const router = express.Router();
 
@@ -19,10 +24,17 @@ const managerOnly = async (req, res, next) => {
 };
 
 // POST /menu — Add a new menu item (managers only)
-router.post('/', jwtAuthMiddleware, managerOnly, async (req, res, next) => {
+router.post('/', jwtAuthMiddleware, managerOnly, upload.single('photo'), async (req, res, next) => {
   try {
     const newMenu = new Menu(req.body);
     const savedMenu = await newMenu.save();
+    
+    const photoBase64 = req.file ? req.file.buffer.toString('base64') : null;
+    if (photoBase64) {
+      savedMenu.photo = `data:${req.file.mimetype};base64,${photoBase64}`;
+      await savedMenu.save();
+    }
+
     res.status(201).json(savedMenu);
   } catch (err) {
     // Mongoose validation errors → 400 instead of 500

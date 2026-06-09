@@ -28,6 +28,9 @@ const menuSchema = new mongoose.Schema({
     type: Number,
     default: 0,
     min: [0, 'Number of orders cannot be negative']
+  },
+  photo: {
+    type: String // Store the file path or URL of the uploaded photo
   }
 });
 

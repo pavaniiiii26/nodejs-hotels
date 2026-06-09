@@ -9,7 +9,6 @@ import db from './db.js';
 import personRoutes from './routes/personRoutes.js';
 import menuRoutes from './routes/menuRoutes.js';
 
-// rest of your file stays exactly the same...
 // Load env variables FIRST before anything else
 
 
